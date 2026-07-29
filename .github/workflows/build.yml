@@ -1,4 +1,4 @@
-name: Build IPA from ZIP
+name: Build IPA
 
 on:
   workflow_dispatch:
@@ -14,39 +14,54 @@ jobs:
         run: |
           unzip -o AzawyStudio.zip -d extracted_project
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Generate Xcode Project and Build IPA
+      - name: Create Clean Xcode Project and Build
         run: |
-          # البحث عن المجلد الذي يحتوي على project.yml
-          PROJECT_DIR=$(find extracted_project -name "project.yml" -exec dirname {} \;)
-          cd "$PROJECT_DIR"
+          # البحث عن مجلد السورس كود الرئيسي
+          SRC_DIR=$(find extracted_project -name "AzawyStudioApp.swift" -exec dirname {} \;)
+          cd "$SRC_DIR/.."
           
-          # توليد مشروع Xcode
+          # إنشاء ملف مشروع Xcode بسيط دون الاعتماد على project.yml
+          cat << 'EOF' > project.yml
+          name: AzawyStudio
+          options:
+            bundlePrefix: com.azawy
+            deploymentTarget:
+              iOS: "15.0"
+          targets:
+            AzawyStudio:
+              type: application
+              platform: iOS
+              deploymentTarget: "15.0"
+              sources:
+                - AzawyStudio
+              settings:
+                GENERATE_INFOPLIST_FILE: YES
+                PRODUCT_BUNDLE_IDENTIFIER: com.azawy.AzawyStudio
+                MARKETING_VERSION: "1.0"
+                CURRENT_PROJECT_VERSION: "1"
+          EOF
+
+          # تثبيت XcodeGen وتوليد المشروع Clean
+          brew install xcodegen
           xcodegen generate
-          
-          # إيجاد اسم ملف .xcodeproj الناتج
-          XCODEPROJ=$(find . -maxdepth 1 -name "*.xcodeproj" | head -n 1)
-          SCHEME_NAME=$(basename "$XCODEPROJ" .xcodeproj)
-          
-          # أرشفة وبناء التطبيق
+
+          # بناء الأرشيف بدون توقيع
           xcodebuild archive \
-            -project "$XCODEPROJ" \
-            -scheme "$SCHEME_NAME" \
+            -project AzawyStudio.xcodeproj \
+            -scheme AzawyStudio \
             -archivePath build/App.xcarchive \
             -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_EFFICIENT_MODE=NO
-          
-          # تجهيز وتجميع ملف الـ IPA
+
+          # استخراج وتجميع ملف IPA
           mkdir -p Payload
           cp -r build/App.xcarchive/Products/Applications/*.app Payload/
           zip -r AzawyStudio.ipa Payload
 
-      - name: Upload IPA Artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: AzawyStudio-IPA
