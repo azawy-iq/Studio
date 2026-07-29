@@ -1,0 +1,44 @@
+name: Build IPA from ZIP
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Unzip Project
+        run: |
+          unzip -o AzawyStudio.zip -d .
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: |
+          cd AzawyStudio || true
+          xcodegen generate
+
+      - name: Build IPA
+        run: |
+          cd AzawyStudio || true
+          xcodebuild archive \
+            -project AzawyStudio.xcodeproj \
+            -scheme AzawyStudio \
+            -archivePath build/AzawyStudio.xcarchive \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+          
+          mkdir -p Payload
+          cp -r build/AzawyStudio.xcarchive/Products/Applications/*.app Payload/
+          zip -r AzawyStudio.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: AzawyStudio-IPA
+          path: AzawyStudio/AzawyStudio.ipa
