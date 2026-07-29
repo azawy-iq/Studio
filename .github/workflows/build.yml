@@ -12,33 +12,42 @@ jobs:
 
       - name: Unzip Project
         run: |
-          unzip -o AzawyStudio.zip -d .
+          unzip -o AzawyStudio.zip -d extracted_project
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Generate Xcode Project
+      - name: Generate Xcode Project and Build IPA
         run: |
-          cd AzawyStudio || true
+          # البحث عن المجلد الذي يحتوي على project.yml
+          PROJECT_DIR=$(find extracted_project -name "project.yml" -exec dirname {} \;)
+          cd "$PROJECT_DIR"
+          
+          # توليد مشروع Xcode
           xcodegen generate
-
-      - name: Build IPA
-        run: |
-          cd AzawyStudio || true
+          
+          # إيجاد اسم ملف .xcodeproj الناتج
+          XCODEPROJ=$(find . -maxdepth 1 -name "*.xcodeproj" | head -n 1)
+          SCHEME_NAME=$(basename "$XCODEPROJ" .xcodeproj)
+          
+          # أرشفة وبناء التطبيق
           xcodebuild archive \
-            -project AzawyStudio.xcodeproj \
-            -scheme AzawyStudio \
-            -archivePath build/AzawyStudio.xcarchive \
+            -project "$XCODEPROJ" \
+            -scheme "$SCHEME_NAME" \
+            -archivePath build/App.xcarchive \
             -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_EFFICIENT_MODE=NO
           
+          # تجهيز وتجميع ملف الـ IPA
           mkdir -p Payload
-          cp -r build/AzawyStudio.xcarchive/Products/Applications/*.app Payload/
+          cp -r build/App.xcarchive/Products/Applications/*.app Payload/
           zip -r AzawyStudio.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: AzawyStudio-IPA
-          path: AzawyStudio/AzawyStudio.ipa
+          path: /**/AzawyStudio.ipa
