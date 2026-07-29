@@ -14,24 +14,24 @@ jobs:
         run: |
           unzip -o AzawyStudio.zip -d extracted_project
 
-      - name: Create Clean Xcode Project and Build
+      - name: Create Clean Xcode Project & Build IPA
         run: |
-          # البحث عن مجلد السورس كود الرئيسي
+          # العثور على مجلد السورس كود
           SRC_DIR=$(find extracted_project -name "AzawyStudioApp.swift" -exec dirname {} \;)
           cd "$SRC_DIR/.."
-          
-          # إنشاء ملف مشروع Xcode بسيط دون الاعتماد على project.yml
+
+          # إنشاء ملف project.yml حديث يستهدف iOS 16.0
           cat << 'EOF' > project.yml
           name: AzawyStudio
           options:
             bundlePrefix: com.azawy
             deploymentTarget:
-              iOS: "15.0"
+              iOS: "16.0"
           targets:
             AzawyStudio:
               type: application
               platform: iOS
-              deploymentTarget: "15.0"
+              deploymentTarget: "16.0"
               sources:
                 - AzawyStudio
               settings:
@@ -39,18 +39,20 @@ jobs:
                 PRODUCT_BUNDLE_IDENTIFIER: com.azawy.AzawyStudio
                 MARKETING_VERSION: "1.0"
                 CURRENT_PROJECT_VERSION: "1"
+                SWIFT_VERSION: "5.0"
           EOF
 
-          # تثبيت XcodeGen وتوليد المشروع Clean
+          # تثبيت XcodeGen وتوليد المشروع
           brew install xcodegen
           xcodegen generate
 
-          # بناء الأرشيف بدون توقيع
+          # بناء الأرشيف بنسخة iOS 16 بدون الحاجة لتوقيع
           xcodebuild archive \
             -project AzawyStudio.xcodeproj \
             -scheme AzawyStudio \
             -archivePath build/App.xcarchive \
             -sdk iphoneos \
+            -destination "generic/platform=iOS" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
